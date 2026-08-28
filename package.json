@@ -1,0 +1,13 @@
+{
+  "name": "revrag-devsecops-test-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Node.js application for testing the DevSecOps assignment",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

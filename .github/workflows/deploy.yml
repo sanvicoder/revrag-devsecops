@@ -1,0 +1,46 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
+
+      - name: Build Docker image
+        run: docker build -t sanviag/test:${{ github.sha }} .
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd
+        with:
+          image-ref: sanviag/test:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL'
+          ignore-unfixed: false
+          exit-code: '1'
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-results.sarif
+
+      - name: Push to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+          docker push sanviag/test:${{ github.sha }}
+
+      - name: Deploy to production
+        run: |
+          ssh -o StrictHostKeyChecking=yes deploy@${{ secrets.SERVER_IP }} \
+            "docker pull sanviag/test:${{ github.sha }} && docker run -d --restart unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges:true -p 80:3000 sanviag/test:${{ github.sha }}"

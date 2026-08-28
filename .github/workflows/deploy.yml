@@ -44,9 +44,13 @@ jobs:
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/github_actions_deploy
+          echo "${{ secrets.SSH_PRIVATE_KEY_B64 }}" | base64 --decode > ~/.ssh/github_actions_deploy
           chmod 600 ~/.ssh/github_actions_deploy
           ssh-keyscan -H "${{ secrets.SERVER_IP }}" >> ~/.ssh/known_hosts
+      
+      - name: Validate SSH key
+        run: |
+          ssh-keygen -y -f ~/.ssh/github_actions_deploy > /dev/null
 
       - name: Deploy to production
         run: |

@@ -8,11 +8,11 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
     permissions:
       contents: read
 
     steps:
-
       - name: Checkout code
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
 
@@ -25,7 +25,6 @@ jobs:
             --severity CRITICAL \
             --exit-code 1 \
             --format table \
-            --ignorefile .trivyignore \
             sanviag/test:${{ github.sha }} | tee trivy-results.txt
 
       - name: Upload Trivy report
@@ -37,10 +36,32 @@ jobs:
 
       - name: Push to Docker Hub
         run: |
-          echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+          echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | \
+            docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
           docker push sanviag/test:${{ github.sha }}
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/github_actions_deploy
+          chmod 600 ~/.ssh/github_actions_deploy
+          ssh-keyscan -H "${{ secrets.SERVER_IP }}" >> ~/.ssh/known_hosts
 
       - name: Deploy to production
         run: |
-          ssh -o StrictHostKeyChecking=yes deploy@${{ secrets.SERVER_IP }} \
-            "docker pull sanviag/test:${{ github.sha }} && docker run -d --restart unless-stopped --read-only --cap-drop=ALL --security-opt=no-new-privileges:true -p 80:3000 sanviag/test:${{ github.sha }}"
+          ssh -i ~/.ssh/github_actions_deploy \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            deploy@${{ secrets.SERVER_IP }} \
+            "docker pull sanviag/test:${{ github.sha }} && \
+             docker stop myapp 2>/dev/null || true && \
+             docker rm myapp 2>/dev/null || true && \
+             docker run -d \
+               --name myapp \
+               --restart unless-stopped \
+               --read-only \
+               --cap-drop=ALL \
+               --security-opt=no-new-privileges:true \
+               -p 80:3000 \
+               sanviag/test:${{ github.sha }}"

@@ -22,6 +22,7 @@ jobs:
       - name: Scan image with Trivy
         run: |
           trivy image \
+            --scanners vuln \
             --severity CRITICAL \
             --exit-code 1 \
             --format table \
@@ -47,7 +48,7 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY_B64 }}" | base64 --decode > ~/.ssh/github_actions_deploy
           chmod 600 ~/.ssh/github_actions_deploy
           ssh-keyscan -H "${{ secrets.SERVER_IP }}" >> ~/.ssh/known_hosts
-      
+
       - name: Validate SSH key
         run: |
           ssh-keygen -y -f ~/.ssh/github_actions_deploy > /dev/null

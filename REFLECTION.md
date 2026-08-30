@@ -1,0 +1,9 @@
+# Reflection
+
+AI helped me understand the security issues in the original Dockerfile and GitHub Actions pipeline and helped me think through possible fixes. In particular, it was useful for explaining why mutable Docker tags, hardcoded credentials, excessive container privileges, insecure SSH configuration, and unscanned container images create security risks. It also helped me structure the vulnerability-management and container-security decision questions.
+
+However, I did not blindly accept the suggested changes. I used my own judgment to choose the final Node.js base image and to balance security, reproducibility, and compatibility with the application. I chose `node:22-alpine` and pinned it to a specific digest after verifying the image locally. I also tested the Docker build and used Trivy to verify the resulting image.
+
+One issue that required further investigation was the Trivy result for `CVE-2026-59873`. The vulnerability was coming from the version of `tar` bundled inside npm in the Node.js image, rather than from the application's own dependencies. Instead of permanently hiding the vulnerability with `.trivyignore`, I upgraded npm to version `12.0.2`, which brought the bundled `tar` dependency to the fixed version `7.5.19`. I verified the installed npm and `tar` versions inside the rebuilt container and then ran Trivy again to confirm that the vulnerability was no longer detected.
+
+Overall, AI helped accelerate the audit and explain security concepts, while I used local testing, vulnerability scanning, and verification to make the final implementation decisions. This process helped me understand that secure DevSecOps practices are not only about applying security recommendations, but also about validating that the changes actually work and that vulnerabilities are genuinely remediated rather than simply suppressed.
